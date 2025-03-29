@@ -2,36 +2,64 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>易經數字卦PROMT產生器</title>
+  <title>🧙‍♂️ 易經 數字卦 PROMPT 產生器</title>
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
       line-height: 1.6;
+      background: linear-gradient(to bottom, #f9f9f9, #eaeaea);
     }
     .section {
       border: 1px solid #ccc;
       padding: 15px;
       margin-bottom: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
-    input[type="text"], input[type="number"] {
+    input[type="text"], input[type="number"], textarea {
       width: 300px;
       padding: 5px;
       margin-top: 5px;
     }
-    .output {
-      background: #f9f9f9;
-      border: 1px dashed #999;
-      padding: 10px;
-      white-space: pre-wrap;
-    }
+	button {
+	  padding: 10px 15px;
+	  font-size: 1em;
+	  background-color: #4CAF50;
+	  color: white;
+	  border: none;
+	  border-radius: 6px;
+	  cursor: pointer;
+	  margin-top: 10px;
+	}
+	button:hover {
+	  background-color: #45a049;
+	}
+
+	textarea, input[type="number"] {
+	  border: 1px solid #ccc;
+	  border-radius: 4px;
+	  font-size: 1em;
+	  padding: 8px;
+	  margin-top: 8px;
+	}	
+	.output {
+	  background: #fffaf0;
+	  border: 1px solid #ccc;
+	  padding: 15px;
+	  font-family: 'Courier New', monospace;
+	  border-radius: 6px;
+	  color: #333;
+	  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+	}
   </style>
 </head>
 <body>
-  <h1>易經 數字卦計算器</h1>
+  <h1>🧙‍♂️ 易經 數字卦 PROMPT 產生器</h1>
 
   <div class="section">
-    <h2>卜卦須知</h2>
+    <h2>📘 卜卦須知</h2>
     <p>使用易經數字卦前, 請注意以下事項, 以確保卦象準確並獲得有效指引:</p>
     <ul>
       <li><strong>誠心誠意</strong>: 問卦前請平心靜氣, 真誠面對問題, 避免隨意或嬉戲心態。</li>
@@ -43,13 +71,21 @@
     </ul>
   </div>
 
+
+  <div class="section">
+    <label>您要問的問題是?<br>
+      <textarea id="question" rows="6" style="width: 50%; font-size: 1.1em;"></textarea>
+    </label>
+  </div>
+
   <div class="section">
     <label>第一個三位數(下卦): <input type="number" id="num1"></label><br>
     <label>第二個三位數(上卦): <input type="number" id="num2"></label><br>
     <label>第三個三位數(變爻): <input type="number" id="num3"></label><br>
-    <label>您要問的問題是?<br><input type="text" id="question"></label><br>
-    <button onclick="calculateHexagram()">計算卦象</button>
-    <button onclick="generateRandom()">隨機產生</button>
+	<button onclick="generateRandom()">隨機</button>
+    <button onclick="calculateHexagram()">👉 啟動占卜 · 請示易神 </button>			
+	<label><input type="checkbox" id="noAutoSend"> 自行解讀 </label>
+
   </div>
 
   <div class="section">
@@ -57,221 +93,129 @@
     <div id="result" class="output"></div>
   </div>
 
+  <script src="64gua.js"></script>
+  <script src="userlimit.js"></script>
+  <script src="time.js"></script>
+  
   <script>
-    // 用來限制每日使用次數的函式
-    function getUsageData() {
-      const today = new Date().toISOString().slice(0, 10);
-      let data = localStorage.getItem("yiUsage");
-      if (data) {
-        data = JSON.parse(data);
-        // 若非今日則重置
-        if (data.date !== today) {
-          data = { date: today, count: 0 };
-        }
-      } else {
-        data = { date: today, count: 0 };
-      }
-      return data;
-    }
-    function updateUsageData(data) {
-      localStorage.setItem("yiUsage", JSON.stringify(data));
-    }
-    function checkUsageLimit() {
-      const usage = getUsageData();
-      if (usage.count >= 3) {
-        alert("⚠️ 今天的占卦次數已用完，請明天再試！");
-        return false;
-      }
-      return true;
-    }
-    function incrementUsage() {
-      const usage = getUsageData();
-      usage.count++;
-      updateUsageData(usage);
-    }
+	let lastPrompt = ''; // 全域儲存
 
-    // 下卦與上卦對應資料
-    const trigramBinary = [
-      '111', // 地 0
-      '000', // 天 1
-      '001', // 澤 2
-      '010', // 火 3
-      '011', // 雷 4
-      '100', // 風 5
-      '101', // 水 6
-      '110'  // 山 7
-    ];
-    const trigramNames = ['地', '天', '澤', '火', '雷', '風', '水', '山'];
+	function openInChatGPT() {
+	  if (!lastPrompt) {
+		alert("請先計算卦象，再送出至 ChatGPT。");
+		return;
+	  }
 
-    // 卦象對應資料
-    const hexagramsMapping = {
-      "天天": { name: "乾", number: 1 },
-      "澤天": { name: "夬", number: 43 },
-      "火天": { name: "大有", number: 14 },
-      "雷天": { name: "大壯", number: 34 },
-      "風天": { name: "小畜", number: 9 },
-      "水天": { name: "需", number: 5 },
-      "山天": { name: "大畜", number: 26 },
-      "地天": { name: "泰", number: 11 },
-
-      "天澤": { name: "履", number: 10 },
-      "澤澤": { name: "兌", number: 58 },
-      "火澤": { name: "睽", number: 38 },
-      "雷澤": { name: "歸妹", number: 54 },
-      "風澤": { name: "中孚", number: 61 },
-      "水澤": { name: "節", number: 60 },
-      "山澤": { name: "損", number: 41 },
-      "地澤": { name: "臨", number: 19 },
-
-      "天火": { name: "同人", number: 13 },
-      "澤火": { name: "革", number: 49 },
-      "火火": { name: "離", number: 30 },
-      "雷火": { name: "豐", number: 55 },
-      "風火": { name: "家人", number: 37 },
-      "水火": { name: "既濟", number: 63 },
-      "山火": { name: "賁", number: 22 },
-      "地火": { name: "明夷", number: 36 },
-
-      "天雷": { name: "無妄", number: 25 },
-      "澤雷": { name: "隨", number: 17 },
-      "火雷": { name: "噬嗑", number: 21 },
-      "雷雷": { name: "震", number: 51 },
-      "風雷": { name: "益", number: 42 },
-      "水雷": { name: "屯", number: 3 },
-      "山雷": { name: "頤", number: 27 },
-      "地雷": { name: "復", number: 24 },
-
-      "天風": { name: "姤", number: 44 },
-      "澤風": { name: "大過", number: 28 },
-      "火風": { name: "鼎", number: 50 },
-      "雷風": { name: "恒", number: 32 },
-      "風風": { name: "巽", number: 57 },
-      "水風": { name: "井", number: 48 },
-      "山風": { name: "蠱", number: 18 },
-      "地風": { name: "升", number: 46 },
-
-      "天水": { name: "訟", number: 6 },
-      "澤水": { name: "困", number: 47 },
-      "火水": { name: "未濟", number: 64 },
-      "雷水": { name: "解", number: 40 },
-      "風水": { name: "渙", number: 59 },
-      "水水": { name: "坎", number: 29 },
-      "山水": { name: "蒙", number: 4 },
-      "地水": { name: "師", number: 7 },
-
-      "天山": { name: "遯", number: 33 },
-      "澤山": { name: "咸", number: 31 },
-      "火山": { name: "旅", number: 56 },
-      "雷山": { name: "小過", number: 62 },
-      "風山": { name: "漸", number: 53 },
-      "水山": { name: "蹇", number: 39 },
-      "山山": { name: "艮", number: 52 },
-      "地山": { name: "謙", number: 15 },
-
-      "天地": { name: "否", number: 12 },
-      "澤地": { name: "萃", number: 45 },
-      "火地": { name: "晉", number: 35 },
-      "雷地": { name: "豫", number: 16 },
-      "風地": { name: "觀", number: 20 },
-      "水地": { name: "比", number: 8 },
-      "山地": { name: "剝", number: 23 },
-      "地地": { name: "坤", number: 2 }
-    };
-
-    function binaryToLines(binaryStr) {
-      return binaryStr.split('').map(bit => parseInt(bit));
-    }
-    function linesToBinary(lines) {
-      return lines.map(x => x.toString()).join('');
-    }
+	  const encoded = encodeURIComponent(lastPrompt);
+	  const chatGPTUrl = `https://chat.openai.com/?prompt=${encoded}`;
+	  const noSend = document.getElementById("noAutoSend").checked;
+	  if (!noSend) {
+		window.open(chatGPTUrl, '_blank');
+	  }
+	}
+	function copyResult() {
+	  const resultText = document.getElementById("result").textContent;
+	  navigator.clipboard.writeText(resultText).then(() => {
+		alert("已複製占卜結果！");
+	  });
+	}
 
     function generateRandom() {
-      document.getElementById("num1").value = Math.floor(Math.random() * 900 + 100);
-      document.getElementById("num2").value = Math.floor(Math.random() * 900 + 100);
-      document.getElementById("num3").value = Math.floor(Math.random() * 900 + 100);
+
+		const [n1, n2, n3] = getTimeBasedNumbers();
+		document.getElementById("num1").value = n1;
+		document.getElementById("num2").value = n2;
+		document.getElementById("num3").value = n3;	  		
+	  
     }
+	
+	function calculateHexagram() {
+	  //if (!checkUsageLimit()) return;
+	  const q = document.getElementById("question").value.trim();
 
-    function calculateHexagram() {
-      // 先檢查每日使用次數
-      if (!checkUsageLimit()) {
-        return;
-      }
+	  let n1Raw = document.getElementById("num1").value;
+	  let n2Raw = document.getElementById("num2").value;
+	  let n3Raw = document.getElementById("num3").value;
 
-      const n1 = parseInt(document.getElementById("num1").value);
-      const n2 = parseInt(document.getElementById("num2").value);
-      const n3 = parseInt(document.getElementById("num3").value);
-      const question = document.getElementById("question").value.trim();
+	  const allEmpty = !n1Raw && !n2Raw && !n3Raw;
+	  const anyFilled = n1Raw || n2Raw || n3Raw;
+	  const allFilled = n1Raw && n2Raw && n3Raw;
 
-      if (isNaN(n1) || isNaN(n2) || isNaN(n3)) {
-        alert("請輸入三個有效的三位數!");
-        return;
-      }
+	  if (anyFilled && !allFilled) {
+		alert("請填寫完整三個三位數，或三個都留空使用隨機值！");
+		return;
+	  }
 
-      const lowerIndex = n1 % 8;
-      const upperIndex = n2 % 8;
-      const changing = n3 % 6;
+	  let n1 = parseInt(n1Raw);
+	  let n2 = parseInt(n2Raw);
+	  let n3 = parseInt(n3Raw);
 
-      const lowerName = trigramNames[lowerIndex];
-      const upperName = trigramNames[upperIndex];
+	  const trigramBinary = ['111','000','001','010','011','100','101','110'];
+	  const trigramNames = ['地','天','澤','火','雷','風','水','山'];
 
-      const lowerLines = binaryToLines(trigramBinary[lowerIndex]);
-      const upperLines = binaryToLines(trigramBinary[upperIndex]);
-      
-      const sixLines = [...lowerLines, ...upperLines];
-      const OrisixLines = [...lowerLines, ...upperLines];
+	  const lower = n1 % 8;
+	  const upper = n2 % 8;
+	  const changeIndex = (n3 % 6 || 6) - 1;
+	  
+	  const lowerBinary = trigramBinary[lower];
+	  const upperBinary = trigramBinary[upper];
 
-      // 計算變爻位置
-      const changingIndex = changing === 0 ? 5 : changing - 1;
-      sixLines[changingIndex] = sixLines[changingIndex] === 1 ? 0 : 1;
+	  const lines = [...lowerBinary, ...upperBinary].map(x => parseInt(x));
+	  const originalLines = [...lines];
+	  lines[changeIndex] = lines[changeIndex] ? 0 : 1;
 
-      const changedLower = linesToBinary(sixLines.slice(0, 3));
-      const changedUpper = linesToBinary(sixLines.slice(3, 6));
+	  const lowerName = trigramNames[lower];
+	  const upperName = trigramNames[upper];
+	  const changedLower = trigramBinary.indexOf(lines.slice(0, 3).join(""));
+	  const changedUpper = trigramBinary.indexOf(lines.slice(3).join(""));
+	  const changedLowerName = trigramNames[changedLower];
+	  const changedUpperName = trigramNames[changedUpper];
 
-      const changedLowerIndex = trigramBinary.indexOf(changedLower);
-      const changedUpperIndex = trigramBinary.indexOf(changedUpper);
+	  const baseKey = `${upperName}${lowerName}`;
+	  const changedKey = `${changedUpperName}${changedLowerName}`;
 
-      const changedLowerName = trigramNames[changedLowerIndex];
-      const changedUpperName = trigramNames[changedUpperIndex];
+	  const baseGuaNum = hexagramsMapping[baseKey]?.number;
+	  const changedGuaNum = hexagramsMapping[changedKey]?.number;
 
-      const key = upperName + lowerName;
-      const originHex = hexagramsMapping[key];
-      const originName = originHex ? originHex.name : "未知";
+	  const baseJsonKey = Object.keys(guaData).find(k => k.startsWith(baseGuaNum.toString().padStart(2, '0') + "_"));
+	  const changedJsonKey = Object.keys(guaData).find(k => k.startsWith(changedGuaNum.toString().padStart(2, '0') + "_"));
 
-      const changeKey = changedUpperName + changedLowerName;
-      const originChangeHex = hexagramsMapping[changeKey];
-      const originChangeName = originChangeHex ? originChangeHex.name : "未知";
+	  const baseGua = guaData[baseJsonKey];
+	  const changedGua = guaData[changedJsonKey];
 
-      const changingText = changing === 0 ? "六爻變" : `第${changing}爻變`;
+	  const changingText = `第${changeIndex + 1}爻變`;
+	  const baseYaoName = Object.keys(baseGua["爻辭"])[changeIndex];
+	  const yaoText = baseGua["爻辭"][baseYaoName];
 
-      // 組合最終結果文字（同時作為送出給 ChatGPT 的 prompt 內容）
-      const result = 
-`本卦: ${upperName}${lowerName}${originName}
-變爻: ${changingText}
-變卦: ${changedUpperName}${changedLowerName}${originChangeName}
+	  const result = `
+	你現在是一個熟悉易經數字卦的專家，請根據我的問題進行解析
+	如果這不是一個合格卜卦問題，請直接告訴我！
+	如果這個問題，也請直接告訴我
 
-這是我用數字卦得到的結果，
-我想問 ${question || '...'} 這件事，
-如果這不是一個合格卜卦問題請直接告訴我！
+	我想問 ${q || '...'} 這件事，
+	📘 占得 ${baseJsonKey} ${baseYaoName}
+	卦辭：${baseGua?.卦辭 || ''}
+	爻辭：${yaoText || '無資料'}		
+	之卦：${changedJsonKey}
 
-得到的卦象為 ${originName}，
-變爻為 ${changingText}，
-變卦為 ${originChangeName}，
-請根據卦詞、爻詞與變卦幫我解讀。`;
+	👉請以下列的格式回答，請主要專注在變爻上的說明占卜
+	🔮 問題解析
+	📘 本卦解釋
+	🔁 變爻解析
+	📙 之卦作為未來趨勢的輔助說明
+	🧙‍♂️ 大師級結語與建議方向
+		`;
 
-      // 顯示結果於頁面（可自行保留或註解）
-      document.getElementById("result").textContent = result;
+	  document.getElementById("result").textContent = result;
+	  lastPrompt = result;
+	  
+	  openInChatGPT();
 
-      // 更新使用次數
-      incrementUsage();
-
-      // 組合跳轉 ChatGPT 的 URL (以 prompt 參數帶入結果文字)
-      const baseURL = "https://chat.openai.com/";
-      const encodedPrompt = encodeURIComponent(result);
-      const url = `${baseURL}?prompt=${encodedPrompt}`;
-
-      // 跳轉至 ChatGPT 網站
-      window.location.href = url;
-    }
+	  incrementUsage();
+ 	  document.getElementById("num1").value = "";
+ 	  document.getElementById("num2").value = "";
+ 	  document.getElementById("num3").value = "";	  
+	}
   </script>
 </body>
 </html>
