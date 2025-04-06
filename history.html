@@ -45,28 +45,35 @@
         window.location.href = 'index.html';
       } else {
         const db = firebase.firestore();
-        const recordsRef = db.collection("divinationRecords")
-          .where("uid", "==", user.uid)
-          .orderBy("timestamp", "desc")
-          .limit(30);
+        const recordsRef = db.collection("divinationRecords").where("uid", "==", user.uid);
 
         recordsRef.get().then(snapshot => {
+          const records = [];
+          snapshot.forEach(doc => {
+            records.push(doc.data());
+          });
+
+          // 前端排序：依 timestamp 降冪排序
+          records.sort((a, b) => {
+            const ta = a.timestamp?.toDate?.().getTime?.() || 0;
+            const tb = b.timestamp?.toDate?.().getTime?.() || 0;
+            return tb - ta;
+          });
+
           const container = document.getElementById("records");
-          if (snapshot.empty) {
-            container.innerHTML = '<p style="text-align:center; color:#888;">目前尚無占卜紀錄</p>';
+          if (records.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#888;">尚無占卜紀錄</p>';
             return;
           }
 
-          snapshot.forEach(doc => {
-            const data = doc.data();
+          records.forEach(data => {
             const div = document.createElement("div");
             div.className = "record";
-            const time = data.timestamp?.toDate().toLocaleString() || "-";
+            const time = data.timestamp?.toDate().toLocaleString() || "(無時間)";
             div.innerHTML = `
-              <p><strong>🧠 問題：</strong> ${data.question || '(未輸入)'}</p>
+              <p><strong>🧠 問題：</strong> ${data.question || '（無內容）'}</p>
               <p><strong>🔢 三數：</strong> ${data.num1}, ${data.num2}, ${data.num3}</p>
-              <p><strong>📘 本卦：</strong> ${data.baseGua} → ${data.changedGua}</p>
-              <p><strong>🔁 變爻：</strong> ${data.yao}</p>
+              <p><strong>📘 卦象：</strong> ${data.baseGua} ${data.yao} → ${data.changedGua}</p>              
               <p class="timestamp">🕒 ${time}</p>
             `;
             container.appendChild(div);
