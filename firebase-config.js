@@ -7,6 +7,5 @@ const firebaseConfig = {
 	messagingSenderId: "1033648186140",
 	appId: "1:1033648186140:web:2fca6d027cb0357664d0d9",	
 };
-const db = firebase.firestore(); // Firestore 資料庫
 
 firebase.initializeApp(firebaseConfig);
