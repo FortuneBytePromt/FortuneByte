@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script>
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) {
+        alert('請先登入！');
+        window.location.href = 'login.html'; // 導回登入頁
+      }
+    });
+  </script>
+  
   <meta charset="UTF-8">
   <title>🧙‍♂️ 易經 數字卦 PROMPT 產生器</title>
   <style>
